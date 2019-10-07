@@ -53,6 +53,11 @@ _start:
 	mov	cx,#39
 	mov	bx,#0x0007		! page 0, attribute 7 (normal)
 	mov	bp,#msg1
+! add by xjk
+! add process to es
+! because process to es is done before print in origin source file
+	mov ax,#0x07c0
+	mov es,ax
 	mov	ax,#0x1301		! write string, move cursor
 	int	0x10
 ! ok, we've written the message, now
