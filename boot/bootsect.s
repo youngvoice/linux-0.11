@@ -62,6 +62,8 @@ _start:
 	int	0x10
 ! ok, we've written the message, now
 ! we want to load the system (at 0x10000)
+inf_loop:
+	jmp inf_loop
 
 msg1:
 	.byte 13,10
