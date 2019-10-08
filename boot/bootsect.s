@@ -31,10 +31,10 @@ begdata:
 begbss:
 .text
 
-SETUPLEN = 4				! nr of setup-sectors
+SETUPLEN = 2				! nr of setup-sectors
 BOOTSEG  = 0x07c0			! original address of boot-sector
 INITSEG  = 0x9000			! we move boot here - out of the way
-SETUPSEG = 0x9020			! setup starts here
+SETUPSEG = 0x07e0			! setup starts here
 SYSSEG   = 0x1000			! system loaded at 0x10000 (65536).
 ENDSEG   = SYSSEG + SYSSIZE		! where to stop loading
 
@@ -61,13 +61,27 @@ _start:
 	mov	ax,#0x1301		! write string, move cursor
 	int	0x10
 ! ok, we've written the message, now
-! we want to load the system (at 0x10000)
+
+load_setup:
+	mov dx,#0x0000
+	mov cx,#0x0002
+	mov bx,#0x0200
+	mov ax,#0x0200+SETUPLEN
+	int 0x13
+	jnc ok_load_setup
+	mov dx,#0x0000
+	mov ax,#0x0000
+	int 0x13
+	jmp load_setup
+ok_load_setup:
+	jmpi 0,SETUPSEG
+
 inf_loop:
 	jmp inf_loop
 
 msg1:
 	.byte 13,10
-	.ascii "Hello OS world, my name is xjk..."
+	.ascii "Now we are in SETUP"
 	.byte 13,10,13,10
 .org 508
 root_dev:
