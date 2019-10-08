@@ -50,7 +50,7 @@ _start:
 	xor	bh,bh
 	int	0x10
 	
-	mov	cx,#39
+	mov	cx,#36
 	mov	bx,#0x0007		! page 0, attribute 7 (normal)
 	mov	bp,#msg1
 ! add by xjk
@@ -81,7 +81,7 @@ inf_loop:
 
 msg1:
 	.byte 13,10
-	.ascii "Now we are in SETUP"
+	.ascii "Hello os world, my name is xjk"
 	.byte 13,10,13,10
 .org 508
 root_dev:
