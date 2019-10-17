@@ -117,6 +117,7 @@ void schedule(void)
 			if (((*p)->signal & ~(_BLOCKABLE & (*p)->blocked)) &&
 			(*p)->state==TASK_INTERRUPTIBLE)
 				(*p)->state=TASK_RUNNING;
+				fprintk(3, "%ld\t%c\t%ld\n", (*p)->pid,'R',jiffies);
 		}
 
 /* this is the scheduler proper: */
@@ -143,6 +144,7 @@ void schedule(void)
 
 int sys_pause(void)
 {
+	fprintk(3, "%ld\t%c\t%ld\n", current->pid,'W',jiffies);
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
 	return 0;
@@ -158,10 +160,13 @@ void sleep_on(struct task_struct **p)
 		panic("task[0] trying to sleep");
 	tmp = *p;
 	*p = current;
+	fprintk(3, "%ld\t%c\t%ld\n", current->pid,'W',jiffies);
 	current->state = TASK_UNINTERRUPTIBLE;
 	schedule();
-	if (tmp)
+	if (tmp) {
 		tmp->state=0;
+		fprintk(3, "%ld\t%c\t%ld\n", tmp->pid,'J',jiffies);
+	}
 }
 
 void interruptible_sleep_on(struct task_struct **p)
@@ -173,7 +178,9 @@ void interruptible_sleep_on(struct task_struct **p)
 	if (current == &(init_task.task))
 		panic("task[0] trying to sleep");
 	tmp=*p;
-	*p=current;
+	*p=current;	
+
+	fprintk(3, "%ld\t%c\t%ld\n", current->pid,'W',jiffies);
 repeat:	current->state = TASK_INTERRUPTIBLE;
 	schedule();
 	if (*p && *p != current) {
@@ -181,14 +188,18 @@ repeat:	current->state = TASK_INTERRUPTIBLE;
 		goto repeat;
 	}
 	*p=NULL;
-	if (tmp)
+	if (tmp) {
 		tmp->state=0;
+		fprintk(3, "%ld\t%c\t%ld\n", tmp->pid,'J',jiffies);
+	}
+
 }
 
 void wake_up(struct task_struct **p)
 {
 	if (p && *p) {
 		(**p).state=0;
+		fprintk(3, "%ld\t%c\t%ld\n", (**p).pid,'J',jiffies);
 		*p=NULL;
 	}
 }

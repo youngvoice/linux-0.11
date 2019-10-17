@@ -129,7 +129,9 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 		current->executable->i_count++;
 	set_tss_desc(gdt+(nr<<1)+FIRST_TSS_ENTRY,&(p->tss));
 	set_ldt_desc(gdt+(nr<<1)+FIRST_LDT_ENTRY,&(p->ldt));
+	fprintk(3, "%ld\t%c\t%ld\n", last_pid,'N', jiffies);
 	p->state = TASK_RUNNING;	/* do this last, just in case */
+	fprintk(3, "%ld\t%c\t%ld\n", last_pid,'J', jiffies);
 	return last_pid;
 }
 
