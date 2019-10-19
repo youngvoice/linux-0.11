@@ -116,8 +116,10 @@ void schedule(void)
 				}
 			if (((*p)->signal & ~(_BLOCKABLE & (*p)->blocked)) &&
 			(*p)->state==TASK_INTERRUPTIBLE)
+			{
 				(*p)->state=TASK_RUNNING;
-				fprintk(3, "%ld\t%c\t%ld\n", (*p)->pid,'J',jiffies);
+				fprintk(3, "%ld\t%c%c\t%ld\n", (*p)->pid,'J','1',jiffies);
+			}
 		}
 
 /* this is the scheduler proper: */
@@ -142,8 +144,8 @@ void schedule(void)
 	if (current->pid != task[next]->pid)
 	{
 			if (current->state == TASK_RUNNING)
-				fprintk(3, "%ld\t%c\t%ld\n", current->pid,'J',jiffies);
-			fprintk(3, "%ld\t%c\t%ld\n", task[next]->pid,'R',jiffies);
+				fprintk(3, "%ld\t%c%c\t%ld\n", current->pid,'J','2',jiffies);
+			fprintk(3, "%ld\t%c%c\t%ld\n", task[next]->pid,'R','3',jiffies);
 	}
 	//fprintk(3, "%ld\t%c\t%ld\n", task[next]->pid,'R',jiffies);
 	switch_to(next);
@@ -151,7 +153,7 @@ void schedule(void)
 
 int sys_pause(void)
 {
-	fprintk(3, "%ld\t%c\t%ld\n", current->pid,'W',jiffies);
+	fprintk(3, "%ld\t%c%c\t%ld\n", current->pid,'W','4',jiffies);
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
 	return 0;
@@ -167,12 +169,12 @@ void sleep_on(struct task_struct **p)
 		panic("task[0] trying to sleep");
 	tmp = *p;
 	*p = current;
-	fprintk(3, "%ld\t%c\t%ld\n", current->pid,'W',jiffies);
+	fprintk(3, "%ld\t%c%c\t%ld\n", current->pid,'W','5',jiffies);
 	current->state = TASK_UNINTERRUPTIBLE;
 	schedule();
 	if (tmp) {
 		tmp->state=0;
-		fprintk(3, "%ld\t%c\t%ld\n", tmp->pid,'J',jiffies);
+		fprintk(3, "%ld\t%c%c\t%ld\n", tmp->pid,'J','6',jiffies);
 	}
 }
 
@@ -188,18 +190,18 @@ void interruptible_sleep_on(struct task_struct **p)
 	*p=current;	
 
 repeat:	current->state = TASK_INTERRUPTIBLE;
-	fprintk(3, "%ld\t%c\t%ld\n", current->pid,'W',jiffies);
+	fprintk(3, "%ld\t%c%c\t%ld\n", current->pid,'W','7',jiffies);
 	schedule();
 	if (*p && *p != current) {
 		if ((**p).state != 0)
-				fprintk(3, "%ld\t%c\t%ld\n", (**p).pid,'J',jiffies);
+				fprintk(3, "%ld\t%c%c\t%ld\n", (**p).pid,'J','8',jiffies);
 		(**p).state=0;
 		goto repeat;
 	}
 	*p=NULL;
 	if (tmp) {
 		tmp->state=0;
-		fprintk(3, "%ld\t%c\t%ld\n", tmp->pid,'J',jiffies);
+		fprintk(3, "%ld\t%c%c\t%ld\n", tmp->pid,'J','9',jiffies);
 	}
 
 }
@@ -208,7 +210,7 @@ void wake_up(struct task_struct **p)
 {
 	if (p && *p) {
 		(**p).state=0;
-		fprintk(3, "%ld\t%c\t%ld\n", (**p).pid,'J',jiffies);
+		fprintk(3, "%ld\t%c%c%c\t%ld\n", (**p).pid,'J','1','0',jiffies);
 		*p=NULL;
 	}
 }

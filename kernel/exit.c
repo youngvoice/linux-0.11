@@ -127,7 +127,7 @@ int do_exit(long code)
 	if (current->leader)
 		kill_session();
 	current->state = TASK_ZOMBIE;
-	fprintk(3, "%ld\t%c\t%ld\n", current->pid,'E', jiffies);
+	fprintk(3, "%ld\t%c%c%c\t%ld\n", current->pid,'E','1','3', jiffies);
 	current->exit_code = code;
 	tell_father(current->father);
 	schedule();
@@ -185,7 +185,7 @@ repeat:
 		if (options & WNOHANG)
 			return 0;
 		current->state=TASK_INTERRUPTIBLE;
-		fprintk(3, "%ld\t%c\t%ld\n", current->pid,'W',jiffies);
+		fprintk(3, "%ld\t%c%c%c\t%ld\n", current->pid,'W','1','4',jiffies);
 		schedule();
 		if (!(current->signal &= ~(1<<(SIGCHLD-1))))
 			goto repeat;
