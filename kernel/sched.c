@@ -191,8 +191,9 @@ repeat:	current->state = TASK_INTERRUPTIBLE;
 	fprintk(3, "%ld\t%c\t%ld\n", current->pid,'W',jiffies);
 	schedule();
 	if (*p && *p != current) {
+		if ((**p).state != 0)
+				fprintk(3, "%ld\t%c\t%ld\n", (**p).pid,'J',jiffies);
 		(**p).state=0;
-		fprintk(3, "%ld\t%c\t%ld\n", (**p).pid,'J',jiffies);
 		goto repeat;
 	}
 	*p=NULL;
