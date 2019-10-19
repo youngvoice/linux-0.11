@@ -118,7 +118,7 @@ void schedule(void)
 			(*p)->state==TASK_INTERRUPTIBLE)
 			{
 				(*p)->state=TASK_RUNNING;
-				fprintk(3, "%ld\t%c%c\t%ld\n", (*p)->pid,'J','1',jiffies);
+				fprintk(3, "%ld\t%c\t%ld\n", (*p)->pid,'J',jiffies);
 			}
 		}
 
@@ -153,7 +153,8 @@ void schedule(void)
 
 int sys_pause(void)
 {
-	fprintk(3, "%ld\t%c%c\t%ld\n", current->pid,'W','4',jiffies);
+	if (current->state != TASK_INTERRUPTIBLE)
+			fprintk(3, "%ld\t%c\t%ld\n", current->pid,'W',jiffies);
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
 	return 0;
