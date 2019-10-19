@@ -154,7 +154,7 @@ void schedule(void)
 int sys_pause(void)
 {
 	
-	if (current->state == TASK_INTERRUPTIBLE)
+	if (current->state != TASK_INTERRUPTIBLE)
 			fprintk(3, "%ld\t%c\t%ld\n", current->pid,'W',jiffies);
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
