@@ -60,6 +60,7 @@ static union task_union init_task = {INIT_TASK,};
 long volatile jiffies=0;
 long startup_time=0;
 struct task_struct *current = &(init_task.task);
+struct tss_struct *tss = &(init_task.task.tss);
 struct task_struct *last_task_used_math = NULL;
 
 struct task_struct * task[NR_TASKS] = {&(init_task.task), };
@@ -104,8 +105,9 @@ void math_state_restore()
 void schedule(void)
 {
 	int i,next,c;
-	struct task_struct ** p;
+	struct task_struct ** p, *pnext;
 
+	pnext = current;
 /* check alarm, wake up any interruptible tasks that have got a signal */
 
 	for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
@@ -130,7 +132,7 @@ void schedule(void)
 			if (!*--p)
 				continue;
 			if ((*p)->state == TASK_RUNNING && (*p)->counter > c)
-				c = (*p)->counter, next = i;
+				c = (*p)->counter, next = i, pnext = *p;
 		}
 		if (c) break;
 		for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
@@ -138,7 +140,7 @@ void schedule(void)
 				(*p)->counter = ((*p)->counter >> 1) +
 						(*p)->priority;
 	}
-	switch_to(next);
+	switch_to(pnext, _LDT(next));
 }
 
 int sys_pause(void)
