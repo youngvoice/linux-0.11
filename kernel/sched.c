@@ -140,7 +140,12 @@ void schedule(void)
 				(*p)->counter = ((*p)->counter >> 1) +
 						(*p)->priority;
 	}
+	/*
+	if (pnext != task[next])
+			printk("pnext = %p  task[next] = %p\n",pnext, task[next]);
+	*/
 	switch_to(pnext, _LDT(next));
+	//switch_to(task[next], _LDT(next));
 }
 
 int sys_pause(void)
