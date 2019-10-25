@@ -107,7 +107,7 @@ void schedule(void)
 	int i,next,c;
 	struct task_struct ** p, *pnext;
 
-	pnext = current;
+	pnext = &(init_task.task);
 /* check alarm, wake up any interruptible tasks that have got a signal */
 
 	for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)

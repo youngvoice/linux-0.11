@@ -38,7 +38,8 @@ volatile void panic(const char * str);
 extern int tty_write(unsigned minor,char * buf,int count);
 
 typedef int (*fn_ptr)();
-extern void switch_to(struct task_struct *pnext, long ldt);
+extern void switch_to(struct task_struct *pnext, unsigned long ldtr);
+extern void first_return_from_kernel();
 
 struct i387_struct {
 	long	cwd;
@@ -83,10 +84,10 @@ struct task_struct {
 	long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	long counter;
 	long priority;
-	long kernelstack;
 	long signal;
 	struct sigaction sigaction[32];
 	long blocked;	/* bitmap of masked signals */
+	long kernelstack;
 /* various fields */
 	int exit_code;
 	unsigned long start_code,end_code,end_data,brk,start_stack;
@@ -115,8 +116,8 @@ struct task_struct {
  * your own risk!. Base=0, limit=0x9ffff (=640kB)
  */
 #define INIT_TASK \
-/* state etc */	{ 0,15,15,PAGE_SIZE+(long)&init_task, \
-/* signals */	0,{{},},0, \
+/* state etc */	{ 0,15,15,\
+/* signals */	0,{{},},0,PAGE_SIZE+(long)&init_task,  \
 /* ec,brk... */	0,0,0,0,0,0, \
 /* pid etc.. */	0,-1,0,0,0, \
 /* uid etc */	0,0,0,0,0,0, \

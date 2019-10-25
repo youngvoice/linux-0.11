@@ -48,10 +48,9 @@ OLDSS		= 0x2C
 state	= 0		# these are offsets into the task-struct.
 counter	= 4
 priority = 8
-kernelstack = 12
-signal	= 16
-sigaction = 20		# MUST be 16 (=len of sigaction)
-blocked = (33*16+4)
+signal	= 12
+sigaction = 16		# MUST be 16 (=len of sigaction)
+blocked = (33*16)
 
 # offsets within sigaction
 sa_handler = 0
@@ -62,7 +61,7 @@ sa_restorer = 12
 nr_system_calls = 72
 
 ESP0 = 4
-KERNEL_STACK = 12
+KERNEL_STACK = (33*16 + 4)
 
 /*
  * Ok, I get parallel printer interrupts while using the floppy for some
@@ -296,6 +295,7 @@ switch_to:
 	pushl %ecx
 	pushl %ebx
 	pushl %eax
+
 	movl 8(%ebp),%ebx
 	cmpl %ebx,current
 	je 1f
@@ -322,7 +322,8 @@ switch_to:
 	jne 1f
 	clts
 
-1: popl %eax
+1: 
+	popl %eax
 	popl %ebx
 	popl %ecx
 	popl %ebp
