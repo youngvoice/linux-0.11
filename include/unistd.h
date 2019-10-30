@@ -129,6 +129,10 @@
 #define __NR_ssetmask	69
 #define __NR_setreuid	70
 #define __NR_setregid	71
+#define __NR_sem_open	72
+#define __NR_sem_wait	73
+#define __NR_sem_post	74
+#define __NR_sem_unlink	75
 
 #define _syscall0(type,name) \
 type name(void) \
@@ -183,6 +187,13 @@ return -1; \
 }
 
 #endif /* __LIBRARY__ */
+
+struct sem_t {
+		char name[20];
+		int value;
+		struct task_struct *queue;
+};
+typedef struct sem_t sem_t;
 
 extern int errno;
 
@@ -249,5 +260,10 @@ int dup2(int oldfd, int newfd);
 int getppid(void);
 pid_t getpgrp(void);
 pid_t setsid(void);
+
+sem_t *sem_open(const char *name, unsigned int value);
+int sem_wait(sem_t *sem);
+int sem_post(sem_t *sem);
+int sem_unlink(const char *name);
 
 #endif
