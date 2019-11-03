@@ -50,6 +50,14 @@
 #define _PC_VDISABLE		8
 #define _PC_CHOWN_RESTRICTED	9
 
+#define SHM_SIZE 64
+typedef unsigned int key_t;
+typedef struct{
+		unsigned int key;
+		unsigned int size;
+		unsigned long page;
+}shm_ds;
+
 #include <sys/stat.h>
 #include <sys/times.h>
 #include <sys/utsname.h>
@@ -129,6 +137,9 @@
 #define __NR_ssetmask	69
 #define __NR_setreuid	70
 #define __NR_setregid	71
+#define __NR_shmget	72
+#define __NR_shmat	73
+#define __NR_shmdt	74
 
 #define _syscall0(type,name) \
 type name(void) \
@@ -249,5 +260,9 @@ int dup2(int oldfd, int newfd);
 int getppid(void);
 pid_t getpgrp(void);
 pid_t setsid(void);
+
+int shmget(key_t key, size_t size, int shmflag);
+void *shmat(int shmid, const void *shmaddr, int shmflg);
+int shmdt(void *shmaddr);
 
 #endif
