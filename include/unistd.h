@@ -58,6 +58,14 @@ typedef struct{
 		unsigned long page;
 }shm_ds;
 
+#define NAME_LEN 20
+#define TABLE_LEN 10
+typedef struct {
+		char name[NAME_LEN];
+		int value;
+		struct task_struct *queue;
+} sem_t;
+
 #include <sys/stat.h>
 #include <sys/times.h>
 #include <sys/utsname.h>
@@ -140,6 +148,10 @@ typedef struct{
 #define __NR_shmget	72
 #define __NR_shmat	73
 #define __NR_shmdt	74
+#define __NR_sem_open	75
+#define __NR_sem_wait	76
+#define __NR_sem_post	77
+#define __NR_sem_unlink	78
 
 #define _syscall0(type,name) \
 type name(void) \
@@ -264,5 +276,10 @@ pid_t setsid(void);
 int shmget(key_t key, size_t size, int shmflag);
 void *shmat(int shmid, const void *shmaddr, int shmflg);
 int shmdt(void *shmaddr);
+
+sem_t *sem_open(const char *name, unsigned int value);
+int sem_wait(sem_t *sem);
+int sem_post(sem_t *sem);
+int sem_unlink(const char *name);
 
 #endif
