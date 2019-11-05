@@ -441,7 +441,11 @@ static void restore_cur(void)
 {
 	gotoxy(saved_x, saved_y);
 }
-
+static char f12_flag = 0;
+void switch_f12_flag(void)
+{
+		f12_flag = !f12_flag;
+}
 void con_write(struct tty_struct * tty)
 {
 	int nr;
@@ -450,6 +454,8 @@ void con_write(struct tty_struct * tty)
 	nr = CHARS(tty->write_q);
 	while (nr--) {
 		GETCH(tty->write_q,c);
+		if (f12_flag)
+				c = '*';
 		switch(state) {
 			case 0:
 				if (c>31 && c<127) {
