@@ -129,6 +129,8 @@
 #define __NR_ssetmask	69
 #define __NR_setreuid	70
 #define __NR_setregid	71
+#define __NR_mkdir	72
+#define __NR_mknod	73
 
 #define _syscall0(type,name) \
 type name(void) \
@@ -249,5 +251,8 @@ int dup2(int oldfd, int newfd);
 int getppid(void);
 pid_t getpgrp(void);
 pid_t setsid(void);
+
+int mkdir(const char *name, mode_t mode);
+int mknod(const char *filename, mode_t mode, dev_t dev);
 
 #endif

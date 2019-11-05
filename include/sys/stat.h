@@ -19,6 +19,7 @@ struct stat {
 
 #define S_IFMT  00170000
 #define S_IFREG  0100000
+#define S_IFPROC 0070000
 #define S_IFBLK  0060000
 #define S_IFDIR  0040000
 #define S_IFCHR  0020000
@@ -27,6 +28,7 @@ struct stat {
 #define S_ISGID  0002000
 #define S_ISVTX  0001000
 
+#define S_ISPROC(m) (((m) & S_IFMT) == S_IFPROC)
 #define S_ISREG(m)	(((m) & S_IFMT) == S_IFREG)
 #define S_ISDIR(m)	(((m) & S_IFMT) == S_IFDIR)
 #define S_ISCHR(m)	(((m) & S_IFMT) == S_IFCHR)
