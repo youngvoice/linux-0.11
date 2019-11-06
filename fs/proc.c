@@ -40,19 +40,30 @@ int proc_read(int dev, char * buf, int count, off_t * pos)
 		return i;
 }
 */
-int proc_read(int dev, char * buf, int count, off_t * pos)
+int proc_read(struct m_inode *inode, int dev, char * buf, int count, off_t * pos)
 {
+		struct super_block *sb;
 		struct task_struct **p;
 		char *kbuf = (char *)malloc(1024*sizeof(char));
 		int i = *pos;
 		int kbuf_len = 0;
-		kbuf_len += sprintf((kbuf + kbuf_len), "pid\tstate\tfather\tcounter\tstart_time\n");
-		for (p = &LAST_TASK; p > &FIRST_TASK; --p)
-				if (*p)
-				{
-						kbuf_len += sprintf((kbuf + kbuf_len), "%d\t%d\t%d\t%d\t%d\n", (*p)->pid, (*p)->state, (*p)->father, (*p)->counter, (*p)->start_time);
-				}
 
+		if (dev == 0) {
+				kbuf_len += sprintf((kbuf + kbuf_len), "pid\tstate\tfather\tcounter\tstart_time\n");
+				for (p = &LAST_TASK; p > &FIRST_TASK; --p)
+						if (*p)
+						{
+								kbuf_len += sprintf((kbuf + kbuf_len), "%d\t%d\t%d\t%d\t%d\n", (*p)->pid, (*p)->state, (*p)->father, (*p)->counter, (*p)->start_time);
+						}
+
+
+		}
+		else if (dev == 1) {
+				sb = get_super(inode->i_dev);
+				kbuf_len += sprintf((kbuf + kbuf_len), "total blocks: \t%d\n", sb->s_nzones);
+				
+		}
+		else ;
 		while (count-- > 0 && i < 65536)
 		{
 				put_fs_byte(*(kbuf + i), buf++);

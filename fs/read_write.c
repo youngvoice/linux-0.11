@@ -12,7 +12,7 @@
 #include <linux/sched.h>
 #include <asm/segment.h>
 
-extern int proc_read(int dev, char * buf, int count, off_t * pos);
+extern int proc_read(struct m_inode *, int dev, char * buf, int count, off_t * pos);
 extern int rw_char(int rw,int dev, char * buf, int count, off_t * pos);
 extern int read_pipe(struct m_inode * inode, char * buf, int count);
 extern int write_pipe(struct m_inode * inode, char * buf, int count);
@@ -67,7 +67,7 @@ int sys_read(unsigned int fd,char * buf,int count)
 	if (inode->i_pipe)
 		return (file->f_mode&1)?read_pipe(inode,buf,count):-EIO;
 	if (S_ISPROC(inode->i_mode))
-		return proc_read(inode->i_zone[0], buf, count, &file->f_pos);
+		return proc_read(inode, inode->i_zone[0], buf, count, &file->f_pos);
 	if (S_ISCHR(inode->i_mode))
 		return rw_char(READ,inode->i_zone[0],buf,count,&file->f_pos);
 	if (S_ISBLK(inode->i_mode))

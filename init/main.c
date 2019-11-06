@@ -27,8 +27,9 @@ _syscall2(int, mkdir, const char*, name, mode_t, mode)
 /*mknod(filename, S_IFPROC|0444, dev) 
  * @mode 0444(r--r--r--)
  * @dev 0 vs psinfo
- * 		1 vs meminfo
- * 		2 vs cpuinfo
+ * 		1 vs hdinfo 
+ * 		2 vs meminfo
+ * 		3 vs cpuinfo
  * */
 _syscall3(int, mknod, const char*, filename, mode_t, mode, dev_t, dev)
 static inline _syscall0(int,fork)
@@ -186,6 +187,7 @@ void init(void)
 	(void) dup(0);
 	mkdir("/proc", 0755);
 	mknod("/proc/psinfo", S_IFPROC|0444, 0);
+	mknod("/proc/hdinfo", S_IFPROC|0444, 1);
 	printf("%d buffers = %d bytes buffer space\n\r",NR_BUFFERS,
 		NR_BUFFERS*BLOCK_SIZE);
 	printf("Free mem: %d bytes\n\r",memory_end-main_memory_start);
