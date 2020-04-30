@@ -104,10 +104,11 @@ int do_exit(long code)
 	int i;
 	free_page_tables(get_base(current->ldt[1]),get_limit(0x0f));
 	free_page_tables(get_base(current->ldt[2]),get_limit(0x17));
+	
 	for (i=0 ; i<NR_TASKS ; i++)
 		if (task[i] && task[i]->father == current->pid) {
 			task[i]->father = 1;
-			if (task[i]->state == TASK_ZOMBIE)
+			if (task[i]->main_thread->state == TASK_ZOMBIE)
 				/* assumption task[1] is always init */
 				(void) send_sig(SIGCHLD, task[1], 1);
 		}
@@ -126,7 +127,15 @@ int do_exit(long code)
 		last_task_used_math = NULL;
 	if (current->leader)
 		kill_session();
-	current->state = TASK_ZOMBIE;
+
+	/*
+	t = current->main_thread;
+	t->state = TASK_ZOMBIE;
+	*/
+	for (i=0 ; i < NR_THREADS; i++)
+			if (thread[i] && thread[i]->task == current)
+					thread[i]->state = TASK_ZOMBIE;
+
 	current->exit_code = code;
 	tell_father(current->father);
 	schedule();
@@ -161,7 +170,7 @@ repeat:
 			if ((*p)->pgrp != -pid)
 				continue;
 		}
-		switch ((*p)->state) {
+		switch ((*p)->main_thread->state) {
 			case TASK_STOPPED:
 				if (!(options & WUNTRACED))
 					continue;
@@ -183,7 +192,7 @@ repeat:
 	if (flag) {
 		if (options & WNOHANG)
 			return 0;
-		current->state=TASK_INTERRUPTIBLE;
+		current->main_thread->state=TASK_INTERRUPTIBLE;
 		schedule();
 		if (!(current->signal &= ~(1<<(SIGCHLD-1))))
 			goto repeat;

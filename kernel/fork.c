@@ -20,6 +20,7 @@
 extern void write_verify(unsigned long address);
 
 long last_pid=0;
+long last_tid=0;
 
 void verify_area(void * addr,int size)
 {
@@ -66,71 +67,93 @@ int copy_mem(int nr,struct task_struct * p)
  * information (task[nr]) and sets up the necessary registers. It
  * also copies the data segment in it's entirety.
  */
-int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
+int copy_process(int nr,int nt,long ebp,long edi,long esi,long gs,long none,
 		long ebx,long ecx,long edx,
 		long fs,long es,long ds,
 		long eip,long cs,long eflags,long esp,long ss)
 {
-	struct task_struct *p;
-	int i;
-	struct file *f;
 
-	p = (struct task_struct *) get_free_page();
-	if (!p)
-		return -EAGAIN;
-	task[nr] = p;
-	*p = *current;	/* NOTE! this doesn't copy the supervisor stack */
-	p->state = TASK_UNINTERRUPTIBLE;
-	p->pid = last_pid;
-	p->father = current->pid;
-	p->counter = p->priority;
-	p->signal = 0;
-	p->alarm = 0;
-	p->leader = 0;		/* process leadership doesn't inherit */
-	p->utime = p->stime = 0;
-	p->cutime = p->cstime = 0;
-	p->start_time = jiffies;
-	p->tss.back_link = 0;
-	p->tss.esp0 = PAGE_SIZE + (long) p;
-	p->tss.ss0 = 0x10;
-	p->tss.eip = eip;
-	p->tss.eflags = eflags;
-	p->tss.eax = 0;
-	p->tss.ecx = ecx;
-	p->tss.edx = edx;
-	p->tss.ebx = ebx;
-	p->tss.esp = esp;
-	p->tss.ebp = ebp;
-	p->tss.esi = esi;
-	p->tss.edi = edi;
-	p->tss.es = es & 0xffff;
-	p->tss.cs = cs & 0xffff;
-	p->tss.ss = ss & 0xffff;
-	p->tss.ds = ds & 0xffff;
-	p->tss.fs = fs & 0xffff;
-	p->tss.gs = gs & 0xffff;
-	p->tss.ldt = _LDT(nr);
-	p->tss.trace_bitmap = 0x80000000;
-	if (last_task_used_math == current)
-		__asm__("clts ; fnsave %0"::"m" (p->tss.i387));
-	if (copy_mem(nr,p)) {
-		task[nr] = NULL;
-		free_page((long) p);
-		return -EAGAIN;
-	}
-	for (i=0; i<NR_OPEN;i++)
-		if ((f=p->filp[i]))
-			f->f_count++;
-	if (current->pwd)
-		current->pwd->i_count++;
-	if (current->root)
-		current->root->i_count++;
-	if (current->executable)
-		current->executable->i_count++;
-	set_tss_desc(gdt+(nr<<1)+FIRST_TSS_ENTRY,&(p->tss));
-	set_ldt_desc(gdt+(nr<<1)+FIRST_LDT_ENTRY,&(p->ldt));
-	p->state = TASK_RUNNING;	/* do this last, just in case */
-	return last_pid;
+		int i;
+		struct task_struct *p;
+		struct thread_struct *q;
+		struct file *f;
+		// here, xjk has some question
+		p = (struct task_struct *) get_free_page();
+		if (!p)
+				return -EAGAIN;
+		q = (struct thread_struct *) get_free_page();
+		if (!q)
+				return -EAGAIN;
+
+		task[nr] = p;
+		thread[nt] = q;
+
+		*p = *current;
+		*q = *currthread;
+
+		q->state = TASK_UNINTERRUPTIBLE;
+		q->tid = last_tid;
+		q->counter = q->priority;
+
+		p->pid = last_pid;
+		p->father = current->pid;
+		p->signal = 0;
+		p->alarm = 0;
+		p->leader = 0;
+		p->utime = p->stime = 0;
+		p->cutime = p->cstime = 0;
+		p->start_time = jiffies;
+
+		q->tss.back_link = 0;
+		q->tss.esp0 = PAGE_SIZE + (long) q;
+		q->tss.ss0 = 0x10;
+		q->tss.eip = eip;
+		q->tss.eflags = eflags;
+		q->tss.eax = 0;
+		q->tss.ecx = ecx;
+		q->tss.edx = edx;
+		q->tss.ebx = ebx;
+		q->tss.esp = esp;
+		q->tss.ebp = ebp;
+		q->tss.esi = esi;
+		q->tss.edi = edi;
+
+		q->tss.es = es & 0xffff;
+		q->tss.cs = cs & 0xffff;
+		q->tss.ss = ss & 0xffff;
+		q->tss.ds = ds & 0xffff;
+		q->tss.fs = fs & 0xffff;
+		q->tss.gs = gs & 0xffff;
+		q->tss.ldt = _LDT(nt);
+		q->tss.trace_bitmap = 0x80000000;
+
+
+		if (last_task_used_math == current)
+				__asm__("clts ; fnsave %0"::"m" (q->tss.i387));
+		if (copy_mem(nr,p)) {
+				task[nr] = NULL;
+				thread[nt] = NULL;
+				free_page((long) p);
+				free_page((long) q);
+				return -EAGAIN;
+		}
+
+		for (i = 0; i < NR_OPEN; i++)
+				if ((f=p->filp[i]))
+						f->f_count++;
+		if (current->pwd)
+				current->pwd->i_count++;
+		if (current->root)
+				current->root->i_count++;
+		if (current->executable)
+				current->executable->i_count++;
+
+		set_tss_desc(gdt+(nt<<1)+FIRST_TSS_ENTRY, &(q->tss));
+		set_ldt_desc(gdt+(nt<<1)+FIRST_LDT_ENTRY, &(p->ldt));
+		p->main_thread = q;
+		q->task = p;
+		q->state = TASK_RUNNING;
+		return last_pid;
 }
 
 int find_empty_process(void)
@@ -145,4 +168,17 @@ int find_empty_process(void)
 		if (!task[i])
 			return i;
 	return -EAGAIN;
+}
+int find_empty_thread(void)
+{
+		int i;
+		repeat:
+			if ((++last_tid)<0) last_tid = 1;
+			for (i = 0; i < NR_THREADS; i++)
+					if (thread[i] && thread[i]->tid == last_tid) goto repeat;
+		for (i = 1; i < NR_THREADS; i++)
+				if (!thread[i])
+						return i;
+		return -EAGAIN;
+
 }

@@ -2,10 +2,13 @@
 #define _SCHED_H
 
 #define NR_TASKS 64
+#define NR_THREADS 64
 #define HZ 100
 
 #define FIRST_TASK task[0]
 #define LAST_TASK task[NR_TASKS-1]
+#define FIRST_THREAD thread[0]
+#define LAST_THREAD thread[NR_THREADS-1]
 
 #include <linux/head.h>
 #include <linux/fs.h>
@@ -78,43 +81,54 @@ struct tss_struct {
 };
 
 struct task_struct {
-/* these are hardcoded - don't touch */
-	long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
-	long counter;
-	long priority;
-	long signal;
-	struct sigaction sigaction[32];
-	long blocked;	/* bitmap of masked signals */
-/* various fields */
-	int exit_code;
-	unsigned long start_code,end_code,end_data,brk,start_stack;
-	long pid,father,pgrp,session,leader;
-	unsigned short uid,euid,suid;
-	unsigned short gid,egid,sgid;
-	long alarm;
-	long utime,stime,cutime,cstime,start_time;
-	unsigned short used_math;
-/* file system info */
-	int tty;		/* -1 if no tty, so it must be signed */
-	unsigned short umask;
-	struct m_inode * pwd;
-	struct m_inode * root;
-	struct m_inode * executable;
-	unsigned long close_on_exec;
-	struct file * filp[NR_OPEN];
-/* ldt for this task 0 - zero 1 - cs 2 - ds&ss */
-	struct desc_struct ldt[3];
-/* tss for this task */
-	struct tss_struct tss;
+		long signal;
+		struct sigaction sigaction[32];
+		long blocked;
+		
+		int exit_code;
+		unsigned long start_code, end_code, end_data, brk, start_stack;
+		long pid, father, pgrp, session, leader;
+		unsigned short uid, euid, suid;
+		unsigned short gid, egid, sgid;
+		long alarm;
+		long utime, stime, cutime, cstime, start_time;
+		unsigned short used_math;
+		int tty;
+		unsigned short umask;
+		struct m_inode *pwd;
+		struct m_inode *root;
+		struct m_inode *executable;
+		unsigned long close_on_exec;
+
+		struct file * filp[NR_OPEN];
+		struct desc_struct ldt[3];
+
+		struct thread_struct *main_thread;
+
 };
 
+struct thread_struct {
+		long state;
+		long counter;
+		long priority;
+
+		long tid;
+		struct tss_struct tss;
+
+		struct task_struct *task;
+
+};
+
+union thread_union {
+		struct thread_struct thread;
+		char stack[PAGE_SIZE];
+};
 /*
  *  INIT_TASK is used to set up the first task table, touch at
  * your own risk!. Base=0, limit=0x9ffff (=640kB)
  */
 #define INIT_TASK \
-/* state etc */	{ 0,15,15, \
-/* signals */	0,{{},},0, \
+/* signals */	{0,{{},},0, \
 /* ec,brk... */	0,0,0,0,0,0, \
 /* pid etc.. */	0,-1,0,0,0, \
 /* uid etc */	0,0,0,0,0,0, \
@@ -127,17 +141,26 @@ struct task_struct {
 /* ldt */	{0x9f,0xc0fa00}, \
 		{0x9f,0xc0f200}, \
 	}, \
+/* main_thread */ &(init_thread.thread) \
+}
+
+#define INIT_THREAD \
+/* state etc */	{ 0,15,15, \
+/* tid */ 0, \
 /*tss*/	{0,PAGE_SIZE+(long)&init_task,0x10,0,0,0,0,(long)&pg_dir,\
 	 0,0,0,0,0,0,0,0, \
 	 0,0,0x17,0x17,0x17,0x17,0x17,0x17, \
 	 _LDT(0),0x80000000, \
 		{} \
 	}, \
+/*task*/ &init_task \
 }
 
 extern struct task_struct *task[NR_TASKS];
+extern struct thread_struct *thread[NR_THREADS];
 extern struct task_struct *last_task_used_math;
 extern struct task_struct *current;
+extern struct thread_struct *currthread;
 extern long volatile jiffies;
 extern long startup_time;
 
@@ -172,17 +195,18 @@ __asm__("str %%ax\n\t" \
  */
 #define switch_to(n) {\
 struct {long a,b;} __tmp; \
-__asm__("cmpl %%ecx,current\n\t" \
+__asm__("cmpl %%ecx,currthread\n\t" \
 	"je 1f\n\t" \
 	"movw %%dx,%1\n\t" \
-	"xchgl %%ecx,current\n\t" \
+	"xchgl %%ebx,current\n\t" \
+	"xchgl %%ecx,currthread\n\t" \
 	"ljmp *%0\n\t" \
 	"cmpl %%ecx,last_task_used_math\n\t" \
 	"jne 1f\n\t" \
 	"clts\n" \
 	"1:" \
 	::"m" (*&__tmp.a),"m" (*&__tmp.b), \
-	"d" (_TSS(n)),"c" ((long) task[n])); \
+	"d" (_TSS(n)),"c" ((long) thread[n]), "b" ((long) thread[n]->task)); \
 }
 
 #define PAGE_ALIGN(n) (((n)+0xfff)&0xfffff000)

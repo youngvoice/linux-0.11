@@ -206,6 +206,10 @@ sys_execve:
 
 .align 2
 sys_fork:
+	call find_empty_thread
+	testl %eax,%eax
+	js 1f
+	movl %eax,%ebx
 	call find_empty_process
 	testl %eax,%eax
 	js 1f
@@ -213,6 +217,7 @@ sys_fork:
 	pushl %esi
 	pushl %edi
 	pushl %ebp
+	pushl %ebx
 	pushl %eax
 	call copy_process
 	addl $20,%esp

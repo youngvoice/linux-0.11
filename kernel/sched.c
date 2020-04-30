@@ -27,7 +27,7 @@ void show_task(int nr,struct task_struct * p)
 {
 	int i,j = 4096-sizeof(struct task_struct);
 
-	printk("%d: pid=%d, state=%d, ",nr,p->pid,p->state);
+	printk("%d: pid=%d, state=%d, ",nr,p->pid,p->main_thread->state);
 	i=0;
 	while (i<j && !((char *)(p+1))[i])
 		i++;
@@ -54,15 +54,28 @@ union task_union {
 	struct task_struct task;
 	char stack[PAGE_SIZE];
 };
+/*
+static struct task_struct init_task = INIT_TASK;
+static union thread_union init_thread;
 
-static union task_union init_task = {INIT_TASK,};
+//init_task = INIT_TASK;
+init_thread = {INIT_THREAD,};
+*/
+static union thread_union init_thread;
+static struct task_struct init_task = INIT_TASK;
+static union thread_union init_thread = {INIT_THREAD,};
+
+
 
 long volatile jiffies=0;
 long startup_time=0;
-struct task_struct *current = &(init_task.task);
+
+struct task_struct *current = &init_task;
+struct thread_struct *currthread = &(init_thread.thread);
 struct task_struct *last_task_used_math = NULL;
 
-struct task_struct * task[NR_TASKS] = {&(init_task.task), };
+struct task_struct * task[NR_TASKS] = {&init_task,};
+struct thread_struct * thread[NR_THREADS] = {&(init_thread.thread),};
 
 long user_stack [ PAGE_SIZE>>2 ] ;
 
@@ -80,11 +93,11 @@ void math_state_restore()
 		return;
 	__asm__("fwait");
 	if (last_task_used_math) {
-		__asm__("fnsave %0"::"m" (last_task_used_math->tss.i387));
+		__asm__("fnsave %0"::"m" (last_task_used_math->main_thread->tss.i387));
 	}
 	last_task_used_math=current;
 	if (current->used_math) {
-		__asm__("frstor %0"::"m" (current->tss.i387));
+		__asm__("frstor %0"::"m" (current->main_thread->tss.i387));
 	} else {
 		__asm__("fninit"::);
 		current->used_math=1;
@@ -105,45 +118,48 @@ void schedule(void)
 {
 	int i,next,c;
 	struct task_struct ** p;
+	struct thread_struct **t;
 
 /* check alarm, wake up any interruptible tasks that have got a signal */
 
 	for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
+	{
 		if (*p) {
 			if ((*p)->alarm && (*p)->alarm < jiffies) {
 					(*p)->signal |= (1<<(SIGALRM-1));
 					(*p)->alarm = 0;
 				}
 			if (((*p)->signal & ~(_BLOCKABLE & (*p)->blocked)) &&
-			(*p)->state==TASK_INTERRUPTIBLE)
-				(*p)->state=TASK_RUNNING;
+			(*p)->main_thread->state==TASK_INTERRUPTIBLE)
+				(*p)->main_thread->state=TASK_RUNNING;
 		}
+	}
 
 /* this is the scheduler proper: */
 
 	while (1) {
 		c = -1;
 		next = 0;
-		i = NR_TASKS;
-		p = &task[NR_TASKS];
+		i = NR_THREADS;
+		t = &thread[NR_THREADS];
 		while (--i) {
-			if (!*--p)
+			if (!*--t)
 				continue;
-			if ((*p)->state == TASK_RUNNING && (*p)->counter > c)
-				c = (*p)->counter, next = i;
+			if ((*t)->state == TASK_RUNNING && (*t)->counter > c)
+				c = (*t)->counter, next = i;
 		}
 		if (c) break;
-		for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
-			if (*p)
-				(*p)->counter = ((*p)->counter >> 1) +
-						(*p)->priority;
+		for(t = &LAST_THREAD; t > &FIRST_THREAD; --t)
+			if (*t)
+				(*t)->counter = ((*t)->counter >> 1) +
+						(*t)->priority;
 	}
 	switch_to(next);
 }
 
 int sys_pause(void)
 {
-	current->state = TASK_INTERRUPTIBLE;
+	current->main_thread->state = TASK_INTERRUPTIBLE;
 	schedule();
 	return 0;
 }
@@ -154,14 +170,14 @@ void sleep_on(struct task_struct **p)
 
 	if (!p)
 		return;
-	if (current == &(init_task.task))
+	if (current == &init_task)
 		panic("task[0] trying to sleep");
 	tmp = *p;
 	*p = current;
-	current->state = TASK_UNINTERRUPTIBLE;
+	current->main_thread->state = TASK_UNINTERRUPTIBLE;
 	schedule();
 	if (tmp)
-		tmp->state=0;
+		tmp->main_thread->state=0;
 }
 
 void interruptible_sleep_on(struct task_struct **p)
@@ -170,25 +186,25 @@ void interruptible_sleep_on(struct task_struct **p)
 
 	if (!p)
 		return;
-	if (current == &(init_task.task))
+	if (current == &init_task)
 		panic("task[0] trying to sleep");
 	tmp=*p;
 	*p=current;
-repeat:	current->state = TASK_INTERRUPTIBLE;
+repeat:	current->main_thread->state = TASK_INTERRUPTIBLE;
 	schedule();
 	if (*p && *p != current) {
-		(**p).state=0;
+		(**p).main_thread->state=0;
 		goto repeat;
 	}
 	*p=NULL;
 	if (tmp)
-		tmp->state=0;
+		tmp->main_thread->state=0;
 }
 
 void wake_up(struct task_struct **p)
 {
 	if (p && *p) {
-		(**p).state=0;
+		(**p).main_thread->state=0;
 		*p=NULL;
 	}
 }
@@ -329,8 +345,8 @@ void do_timer(long cpl)
 	}
 	if (current_DOR & 0xf0)
 		do_floppy_timer();
-	if ((--current->counter)>0) return;
-	current->counter=0;
+	if ((--currthread->counter)>0) return;
+	currthread->counter=0;
 	if (!cpl) return;
 	schedule();
 }
@@ -377,8 +393,8 @@ int sys_getegid(void)
 
 int sys_nice(long increment)
 {
-	if (current->priority-increment>0)
-		current->priority -= increment;
+	if (current->main_thread->priority-increment>0)
+		current->main_thread->priority -= increment;
 	return 0;
 }
 
@@ -389,8 +405,8 @@ void sched_init(void)
 
 	if (sizeof(struct sigaction) != 16)
 		panic("Struct sigaction MUST be 16 bytes");
-	set_tss_desc(gdt+FIRST_TSS_ENTRY,&(init_task.task.tss));
-	set_ldt_desc(gdt+FIRST_LDT_ENTRY,&(init_task.task.ldt));
+	set_tss_desc(gdt+FIRST_TSS_ENTRY,&(init_thread.thread.tss));
+	set_ldt_desc(gdt+FIRST_LDT_ENTRY,&(init_task.ldt));
 	p = gdt+2+FIRST_TSS_ENTRY;
 	for(i=1;i<NR_TASKS;i++) {
 		task[i] = NULL;
