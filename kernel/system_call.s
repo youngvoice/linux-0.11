@@ -207,8 +207,8 @@ sys_execve:
 .align 2
 sys_fork:
 	call find_empty_thread
-	testl %eax,%eax
-	js 1f
+#testl %eax,%eax
+#js 1f
 	movl %eax,%ebx
 	call find_empty_process
 	testl %eax,%eax

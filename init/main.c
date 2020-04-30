@@ -43,6 +43,7 @@ static char printbuf[1024];
 
 extern int vsprintf();
 extern void init(void);
+extern void xjk_init(void);
 extern void blk_dev_init(void);
 extern void chr_dev_init(void);
 extern void hd_init(void);
@@ -135,9 +136,9 @@ void main(void)		/* This really IS void, no error here. */
 	floppy_init();
 	sti();
 	move_to_user_mode();
-	if (!fork()) {		/* we count on this going ok */
-		init();
-	}
+	//if (!fork()) {		/* we count on this going ok */
+	//	init();
+	//}
 /*
  *   NOTE!!   For any other task 'pause()' would mean we have to get a
  * signal to awaken, but task0 is the sole exception (see 'schedule()')
@@ -145,7 +146,14 @@ void main(void)		/* This really IS void, no error here. */
  * can run). For task0 'pause()' just means we go check if some other
  * task can run, and if not we return here.
  */
-	for(;;) pause();
+	//for(;;) pause();
+	setup((void *) &drive_info);
+	(void) open("/dev/tty0",O_RDWR,0);
+	(void) dup(0);
+	(void) dup(0);
+	fork();
+	for(;;);
+	xjk_init();
 }
 
 static int printf(const char *fmt, ...)
@@ -164,7 +172,12 @@ static char * envp_rc[] = { "HOME=/", NULL };
 
 static char * argv[] = { "-/bin/sh",NULL };
 static char * envp[] = { "HOME=/usr/root", NULL };
+void xjk_init(void)
+{
+	printf("enter");
+	for(;;) printf("xjk");
 
+}
 void init(void)
 {
 	int pid,i;

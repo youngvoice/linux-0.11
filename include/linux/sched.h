@@ -119,10 +119,6 @@ struct thread_struct {
 
 };
 
-union thread_union {
-		struct thread_struct thread;
-		char stack[PAGE_SIZE];
-};
 /*
  *  INIT_TASK is used to set up the first task table, touch at
  * your own risk!. Base=0, limit=0x9ffff (=640kB)
@@ -147,7 +143,7 @@ union thread_union {
 #define INIT_THREAD \
 /* state etc */	{ 0,15,15, \
 /* tid */ 0, \
-/*tss*/	{0,PAGE_SIZE+(long)&init_task,0x10,0,0,0,0,(long)&pg_dir,\
+/*tss*/	{0,PAGE_SIZE+(long)&init_thread,0x10,0,0,0,0,(long)&pg_dir,\
 	 0,0,0,0,0,0,0,0, \
 	 0,0,0x17,0x17,0x17,0x17,0x17,0x17, \
 	 _LDT(0),0x80000000, \

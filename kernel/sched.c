@@ -50,9 +50,9 @@ extern void mem_use(void);
 extern int timer_interrupt(void);
 extern int system_call(void);
 
-union task_union {
-	struct task_struct task;
-	char stack[PAGE_SIZE];
+union thread_union {
+		struct thread_struct thread;
+		char stack[PAGE_SIZE];
 };
 /*
 static struct task_struct init_task = INIT_TASK;
