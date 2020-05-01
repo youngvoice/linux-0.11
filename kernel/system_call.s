@@ -220,7 +220,7 @@ sys_fork:
 	pushl %ebx
 	pushl %eax
 	call copy_process
-	addl $20,%esp
+	addl $24,%esp
 1:	ret
 
 hd_interrupt:
