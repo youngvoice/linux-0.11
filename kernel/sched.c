@@ -61,9 +61,9 @@ static union thread_union init_thread;
 //init_task = INIT_TASK;
 init_thread = {INIT_THREAD,};
 */
-static union thread_union init_thread;
-static struct task_struct init_task = INIT_TASK;
+static struct task_struct init_task;
 static union thread_union init_thread = {INIT_THREAD,};
+static struct task_struct init_task = INIT_TASK;
 
 
 

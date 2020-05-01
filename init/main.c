@@ -136,9 +136,9 @@ void main(void)		/* This really IS void, no error here. */
 	floppy_init();
 	sti();
 	move_to_user_mode();
-	//if (!fork()) {		/* we count on this going ok */
-	//	init();
-	//}
+	if (!fork()) {		/* we count on this going ok */
+		init();
+	}
 /*
  *   NOTE!!   For any other task 'pause()' would mean we have to get a
  * signal to awaken, but task0 is the sole exception (see 'schedule()')
@@ -146,14 +146,7 @@ void main(void)		/* This really IS void, no error here. */
  * can run). For task0 'pause()' just means we go check if some other
  * task can run, and if not we return here.
  */
-	//for(;;) pause();
-	setup((void *) &drive_info);
-	(void) open("/dev/tty0",O_RDWR,0);
-	(void) dup(0);
-	(void) dup(0);
-	fork();
-	for(;;);
-	xjk_init();
+	for(;;) pause();
 }
 
 static int printf(const char *fmt, ...)
