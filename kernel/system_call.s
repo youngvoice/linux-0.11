@@ -48,9 +48,10 @@ OLDSS		= 0x2C
 state	= 0		# these are offsets into the task-struct.
 counter	= 4
 priority = 8
-signal	= 12
-sigaction = 16		# MUST be 16 (=len of sigaction)
-blocked = (33*16)
+
+signal	= 0
+sigaction = 4		# MUST be 16 (=len of sigaction)
+blocked = (32*16 + 4)
 
 # offsets within sigaction
 sa_handler = 0
@@ -93,7 +94,7 @@ system_call:
 	mov %dx,%fs
 	call sys_call_table(,%eax,4)
 	pushl %eax
-	movl current,%eax
+	movl currthread,%eax
 	cmpl $0,state(%eax)		# state
 	jne reschedule
 	cmpl $0,counter(%eax)		# counter

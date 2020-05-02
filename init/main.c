@@ -136,6 +136,7 @@ void main(void)		/* This really IS void, no error here. */
 	floppy_init();
 	sti();
 	move_to_user_mode();
+	/*
 	setup((void *) &drive_info);
 	(void) open("/dev/tty0",O_RDWR,0);
 	(void) dup(0);
@@ -149,10 +150,11 @@ void main(void)		/* This really IS void, no error here. */
 			}
 			for(;;) printf("xjk1");
 	}
+	*/
 
-	//if (!fork()) {		/* we count on this going ok */
-	//	init();
-	//}
+	if (!fork()) {		/* we count on this going ok */
+		init();
+	}
 /*
  *   NOTE!!   For any other task 'pause()' would mean we have to get a
  * signal to awaken, but task0 is the sole exception (see 'schedule()')
@@ -206,10 +208,6 @@ void init(void)
 	if (pid>0)
 		while (pid != wait(&i))
 			/* nothing */;
-
-	while (1)
-			printf("xjkhhh");
-	/*
 	while (1) {
 		if ((pid=fork())<0) {
 			printf("Fork failed in init\r\n");
@@ -229,6 +227,5 @@ void init(void)
 		printf("\n\rchild %d died with code %04x\n\r",pid,i);
 		sync();
 	}
-	*/
 	_exit(0);	/* NOTE! _exit, not exit() */
 }
