@@ -153,7 +153,7 @@ void main(void)		/* This really IS void, no error here. */
 	*/
 
 	if (!fork()) {		/* we count on this going ok */
-		init();
+		xjk_init();
 	}
 /*
  *   NOTE!!   For any other task 'pause()' would mean we have to get a
@@ -181,12 +181,87 @@ static char * envp_rc[] = { "HOME=/", NULL };
 
 static char * argv[] = { "-/bin/sh",NULL };
 static char * envp[] = { "HOME=/usr/root", NULL };
+//###############################################################
+#define __NR_newthread 72
+typedef struct {
+		void *stackaddr;
+		int stacksize;
+} pthread_attr_t;
+typedef struct {
+		char *startaddr;
+		int testsize;
+} argument_t;
+/*typedef int size_t; */
+typedef unsigned long pthread_t;
+void pthread_attr_init(pthread_attr_t *attr) {
+}
+
+void pthread_attr_setstackaddr(pthread_attr_t *attr, void *stack_addr)
+{
+		attr->stackaddr = stack_addr;
+}
+void pthread_attr_setstacksize(pthread_attr_t *attr, size_t stack_size)
+{
+		attr->stacksize = stack_size;
+}
+
+_syscall3(int,newthread,unsigned long*, threadID, pthread_attr_t*, attr, void*, start_routine)
+
+#define PARASIZE 4
+int pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *arg)
+{
+		long *addr = attr->stackaddr - PARASIZE;
+		*addr = arg;
+		attr->stackaddr = attr->stackaddr - PARASIZE - 4;
+		newthread(thread, attr, start_routine);
+}
+
+/*memtest(void *startaddr, int testsize) */
+#define StackSize 1024
+void memtest(argument_t *arg)
+{
+		while(1)
+		{
+				//printf("%p %d", arg->startaddr, arg->testsize);
+				printf("memtest\n");
+		}
+}
+
 void xjk_init(void)
 {
-	printf("enter");
-	for(;;) printf("xjk");
+		setup((void *) &drive_info);
+		(void) open("/dev/tty0",O_RDWR,0);
+		(void) dup(0);
+		(void) dup(0);
+		printf("%d buffers = %d bytes buffer space\n\r",NR_BUFFERS,
+			NR_BUFFERS*BLOCK_SIZE);
+		printf("Free mem: %d bytes\n\r",memory_end-main_memory_start);
+
+		pthread_attr_t attr;
+		size_t stacks = StackSize;
+		pthread_t threadID;
+		argument_t arg;
+		
+		//void *stackb = malloc(StackSize);
+		char stackb[StackSize];
+		void *stackp = stackb + StackSize;
+		pthread_attr_init(&attr);
+		pthread_attr_setstackaddr(&attr, stackp);
+		pthread_attr_setstacksize(&attr, stacks);
+		arg.startaddr = (char *)1000;
+		arg.testsize = 100;
+
+		pthread_create(&threadID, &attr, memtest, &arg);
+		/*
+		printf("mem function %p\n", memtest);
+		printf("stack addr %p\n", attr.stackaddr);
+		*/
+		printf("New Thread ID is %d\n", threadID);
+		while(1);
 
 }
+
+//###############################################################
 void init(void)
 {
 	int pid,i;
