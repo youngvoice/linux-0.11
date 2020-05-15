@@ -141,6 +141,20 @@ int do_exit(long code)
 	schedule();
 	return (-1);	/* just to suppress warnings */
 }
+int sys_pthreadexit(long *value_ptr)
+{
+	
+	long ret_val;
+	/*
+	t = current->main_thread;
+	t->state = TASK_ZOMBIE;
+	*/
+	currthread->state = TASK_ZOMBIE;
+	ret_val = 0;
+	put_fs_long(ret_val, value_ptr);
+	schedule();
+	return (-1);	/* just to suppress warnings */
+}
 
 int sys_exit(int error_code)
 {

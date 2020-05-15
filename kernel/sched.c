@@ -159,7 +159,7 @@ void schedule(void)
 
 int sys_pause(void)
 {
-	current->main_thread->state = TASK_INTERRUPTIBLE;
+	currthread->state = TASK_INTERRUPTIBLE;
 	schedule();
 	return 0;
 }
