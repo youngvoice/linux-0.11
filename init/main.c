@@ -107,6 +107,8 @@ void main(void)		/* This really IS void, no error here. */
  * Interrupts are still disabled. Do necessary setups, then
  * enable them
  */
+	unsigned short prom[12];
+	int i = 0;
  	ROOT_DEV = ORIG_ROOT_DEV;
  	drive_info = DRIVE_INFO;
 	memory_end = (1<<20) + (EXT_MEM_K<<10);
@@ -133,6 +135,17 @@ void main(void)		/* This really IS void, no error here. */
 	buffer_init(buffer_memory_end);
 	hd_init();
 	floppy_init();
+
+#define NE_DATAPORT 0x10
+#define NE_IOBASE	0xc020
+	for (i = 0; i < 12; i++) {
+			/*prom[i] = inw(NE_IOBASE + NE_DATAPORT);
+			 */
+			__asm__ volatile("inb %%dx, %%ax"
+			:"=a"(prom[i]):"d"(NE_IOBASE + NE_DATAPORT));
+
+			printk("%x ", prom[i]);
+	}
 	sti();
 	move_to_user_mode();
 	if (!fork()) {		/* we count on this going ok */
