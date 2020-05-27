@@ -23,7 +23,7 @@ CPP	=cpp -nostdinc -Iinclude
 ROOT_DEV= #FLOPPY 
 
 ARCHIVES=kernel/kernel.o mm/mm.o fs/fs.o
-DRIVERS =kernel/blk_drv/blk_drv.a kernel/chr_drv/chr_drv.a
+DRIVERS =kernel/blk_drv/blk_drv.a kernel/chr_drv/chr_drv.a kernel/net_drv/net_drv.a
 MATH	=kernel/math/math.a
 LIBS	=lib/lib.a
 
@@ -74,6 +74,9 @@ tools/system:	boot/head.o init/main.o \
 
 kernel/math/math.a: FORCE
 	(cd kernel/math; make)
+
+kernel/net_drv/net_drv.a: FORCE
+	(cd kernel/net_drv; make)
 
 kernel/blk_drv/blk_drv.a: FORCE
 	(cd kernel/blk_drv; make)

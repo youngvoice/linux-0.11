@@ -37,6 +37,7 @@ clean:
 	for i in *.c;do rm -f `basename $$i .c`.s;done
 	(cd chr_drv; make clean)
 	(cd blk_drv; make clean)
+	(cd net_drv; make clean)
 	(cd math; make clean)
 
 dep:
@@ -46,6 +47,7 @@ dep:
 	cp tmp_make Makefile
 	(cd chr_drv; make dep)
 	(cd blk_drv; make dep)
+	(cd net_drv; make dep)
 
 ### Dependencies:
 exit.s exit.o: exit.c ../include/errno.h ../include/signal.h \

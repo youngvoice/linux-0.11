@@ -47,6 +47,7 @@ extern void blk_dev_init(void);
 extern void chr_dev_init(void);
 extern void hd_init(void);
 extern void floppy_init(void);
+extern int ne2k_init(void);
 extern void mem_init(long start, long end);
 extern long rd_init(long mem_start, int length);
 extern long kernel_mktime(struct tm * tm);
@@ -107,7 +108,8 @@ void main(void)		/* This really IS void, no error here. */
  * Interrupts are still disabled. Do necessary setups, then
  * enable them
  */
-	unsigned short prom[12];
+	//unsigned short prom[12];
+	unsigned char prom[12];
 	int i = 0;
  	ROOT_DEV = ORIG_ROOT_DEV;
  	drive_info = DRIVE_INFO;
@@ -135,17 +137,35 @@ void main(void)		/* This really IS void, no error here. */
 	buffer_init(buffer_memory_end);
 	hd_init();
 	floppy_init();
+	ne2k_init();
 
 #define NE_DATAPORT 0x10
 #define NE_IOBASE	0xc020
+	/*
 	for (i = 0; i < 12; i++) {
-			/*prom[i] = inw(NE_IOBASE + NE_DATAPORT);
-			 */
+			//prom[i] = inw(NE_IOBASE + NE_DATAPORT);
+			
 			__asm__ volatile("inb %%dx, %%ax"
 			:"=a"(prom[i]):"d"(NE_IOBASE + NE_DATAPORT));
 
 			printk("%x ", prom[i]);
 	}
+	*/
+
+	/*
+	for (i = 0; i < 6; i++) {
+			__asm__ volatile("inw %%dx,%%ax":"=a" (prom[i]):"d" (NE_IOBASE + NE_DATAPORT));
+			printk("%x ", prom[i]);
+	}
+	*/
+
+	/*
+	for (i = 0; i < 12; i++) {
+			__asm__ volatile ("inb %%dx,%%al":"=a" (prom[i]):"d" (NE_IOBASE + NE_DATAPORT));
+			printk("%x ", prom[i]);
+	}
+	*/
+
 	sti();
 	move_to_user_mode();
 	if (!fork()) {		/* we count on this going ok */
