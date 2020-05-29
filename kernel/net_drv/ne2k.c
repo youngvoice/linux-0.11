@@ -2,6 +2,8 @@
 #include <linux/kernel.h>
 #include "io.h"
 #include <asm/system.h>
+#include <linux/sched.h>
+#include <linux/mm.h>
 #include "8390.h"
 
 #define NE_BASE (ioaddr)
@@ -16,15 +18,19 @@
 //ne_probe()
 /*
 */
+int ei_debug = 1; /*xjk*/
 
-//ne2k_init()
 int ioaddr = 0xc020;
+unsigned char irq = 11;
 int word16;
 unsigned char tx_start_page;
 unsigned char stop_page;
 unsigned char rx_start_page;
 unsigned char current_page;
 char *name;
+
+extern void ne2k_interrupt();
+//ne2k_init()
 int ne2k_init()
 {
 
@@ -142,6 +148,17 @@ int ne2k_init()
 	rx_start_page = start_page + TX_PAGES;
 
 
+	static unsigned char cache_21 = 0xff;
+	static unsigned char cache_A1 = 0xff;
+	set_intr_gate(0x20 + irq, &ne2k_interrupt);
+	cache_21 = inb_p(0x21);
+	cache_A1 = inb_p(0xA1);
+	cache_21 &= ~(1<<2);
+	cache_A1 &= ~(1<<(irq-8));
+	outb_p(cache_21,0x21);
+	outb(cache_A1,0xA1);
+
+
 
 /*################### NS8390_init() #########################################*/
 	
@@ -202,7 +219,7 @@ int ne2k_init()
 }
 
 
-/* ##############################################################*/
+/* ####################### OUTPUT #######################################*/
 static void
 ne_block_output(int count,
 		const unsigned char *buf, const int start_page)
@@ -251,7 +268,6 @@ ne_block_output(int count,
 
     /* This was for the ALPHA version only, but enough people have
        encountering problems that it is still here. */
-	int ei_debug = 1; /*xjk*/
     if (ei_debug > 1) {		/* DMA termination address check... */
 	int addr, tries = 20;
 	do {
@@ -396,3 +412,193 @@ int test_transmit()
 		return 0;
 }
 
+/*######################################## INPUT #################################################*/
+#define RECEIVE_PACKET_QUEUE 3 
+char *receive_packet_queue[RECEIVE_PACKET_QUEUE] = {NULL,NULL,NULL};
+int packet_queue_tail(char *data)
+{
+		int i = 0, ret = 1;
+		for (i = 0; i < RECEIVE_PACKET_QUEUE; i++)
+				if (receive_packet_queue[i] == NULL)
+				{
+						receive_packet_queue[i] = data;
+						return 0;
+				}
+		return ret;
+}
+
+
+void ne2k_receive()
+{
+		int e8390_base = ioaddr;
+		int rxing_page, this_frame, next_frame, current_offset;
+		int rx_pkt_count = 0;
+		struct e8390_pkt_hdr rx_frame;
+		while (++rx_pkt_count < 10) {
+				int pkt_len;
+				/* Get the rx page (incoming packet pointer). */
+				outb_p(E8390_NODMA+E8390_PAGE1, e8390_base + E8390_CMD);
+				rxing_page = inb_p(e8390_base + EN1_CURPAG);
+				outb_p(E8390_NODMA+E8390_PAGE0, e8390_base + E8390_CMD);
+				/* Remove one frame from the ring.  Boundary is alway a page behind. */
+				this_frame = inb_p(e8390_base + EN0_BOUNDARY) + 1;
+				if (this_frame >= stop_page)
+						this_frame = rx_start_page;
+				if (this_frame == rxing_page)	/* Read all the frames? */
+						break;				/* Done for now */
+				current_offset = this_frame << 8;
+				ne_block_input(sizeof(rx_frame), (char *)&rx_frame,
+								current_offset);
+
+				pkt_len = rx_frame.count - sizeof(rx_frame);
+
+				next_frame = this_frame + 1 + ((pkt_len+4)>>8);
+
+				if (pkt_len < 60  ||  pkt_len > 1518) {
+						if (ei_debug)
+								printk("%s: bogus packet size: %d, status=%#2x nxpg=%#2x.\n",
+												name, rx_frame.count, rx_frame.status,
+												rx_frame.next);
+				} else if ((rx_frame.status & 0x0F) == ENRSR_RXOK) {
+						//char *data = receive_packet;
+						//data = (char *)kmalloc(pkt_len, GFP_ATOMIC);
+						char *data = (char *)get_free_page();
+						if (data == NULL) {
+								if (ei_debug)
+										printk("%s: Couldn't allocate a sk_buff of size %d.\n",
+														name, pkt_len);
+								break;
+						} else {
+								if (packet_queue_tail(data) == 0)
+										ne_block_input(pkt_len, (char *) data,
+														current_offset + sizeof(rx_frame));
+								//netif_rx(skb);
+						}
+				} else {
+						int errs = rx_frame.status;
+						if (ei_debug)
+								printk("%s: bogus packet: status=%#2x nxpg=%#2x size=%d\n",
+												name, rx_frame.status, rx_frame.next,
+												rx_frame.count);
+				}
+				next_frame = rx_frame.next;
+
+				current_page = next_frame;
+				outb(next_frame-1, e8390_base+EN0_BOUNDARY);
+		}
+}
+
+
+
+static int
+ne_block_input(int count, char *buf, int ring_offset)
+{
+    int xfer_count = count;
+    int nic_base = NE_BASE;
+
+    outb_p(E8390_NODMA+E8390_PAGE0+E8390_START, nic_base+ NE_CMD);
+    outb_p(count & 0xff, nic_base + EN0_RCNTLO);
+    outb_p(count >> 8, nic_base + EN0_RCNTHI);
+    outb_p(ring_offset & 0xff, nic_base + EN0_RSARLO);
+    outb_p(ring_offset >> 8, nic_base + EN0_RSARHI);
+    outb_p(E8390_RREAD+E8390_START, nic_base + NE_CMD);
+    if (word16) {
+      insw(NE_BASE + NE_DATAPORT,buf,count>>1);
+      if (count & 0x01)
+	buf[count-1] = inb(NE_BASE + NE_DATAPORT), xfer_count++;
+    } else {
+	insb(NE_BASE + NE_DATAPORT, buf, count);
+    }
+
+    /* This was for the ALPHA version only, but enough people have
+       encountering problems that it is still here.  If you see
+       this message you either 1) have an slightly imcompatible clone
+       or 2) have noise/speed problems with your bus. */
+    if (ei_debug > 1) {		/* DMA termination address check... */
+	int addr, tries = 20;
+	do {
+	    /* DON'T check for 'inb_p(EN0_ISR) & ENISR_RDC' here
+	       -- it's broken! Check the "DMA" address instead. */
+	    int high = inb_p(nic_base + EN0_RSARHI);
+	    int low = inb_p(nic_base + EN0_RSARLO);
+	    addr = (high << 8) + low;
+	    if (((ring_offset + xfer_count) & 0xff) == low)
+		break;
+	} while (--tries > 0);
+	if (tries <= 0)
+	    printk("%s: RX transfer address mismatch,"
+		   "%#4.4x (expected) vs. %#4.4x (actual).\n",
+		   name, ring_offset + xfer_count, addr);
+    }
+    return ring_offset + count;
+}
+
+void ne2k_handler()
+{
+	
+	int e8390_base = ioaddr;
+	unsigned char interrupts;
+	printk("interrupt occur\n");
+    /* Change to page 0 and read the intr status reg. */
+    outb_p(E8390_NODMA+E8390_PAGE0, e8390_base + E8390_CMD);
+    if (ei_debug > 3)
+		printk("%s: interrupt(isr=%#2.2x).\n", name,
+			   inb_p(e8390_base + EN0_ISR));
+	while ((interrupts = inb_p(e8390_base + EN0_ISR)) != 0) {
+			outb(interrupts, e8390_base + EN0_ISR);
+			if (interrupts & ENISR_RX) {
+					ne2k_receive();
+			}
+	}
+
+
+}
+
+void netif_rx(char *packet);
+int test_receive()
+{
+	int e8390_base = ioaddr;
+	unsigned char interrupts;
+	int i = 0;
+    /* Change to page 0 and read the intr status reg. */
+    outb_p(E8390_NODMA+E8390_PAGE0, e8390_base + E8390_CMD);
+	printk("%s: interrupt(isr=%#2.2x).\n", name,
+			   inb_p(e8390_base + EN0_ISR));
+	for (i = 0; i < RECEIVE_PACKET_QUEUE; i++)
+			if (receive_packet_queue[i] != NULL)
+			{
+					netif_rx(receive_packet_queue[i]);
+					free_page(receive_packet_queue[i]);
+					receive_packet_queue[i] = NULL;
+			}
+
+		return 0;
+}
+
+/*################################## ARP #################################*/
+
+struct {
+		unsigned char ipaddr[LOGIC_ADDR_LEN];
+		unsigned char macaddr[ETHER_ADDR_LEN];
+} arpcache;
+void resolve_arp(struct pbuf *arp_package)
+{
+		int i = 0;
+
+		for (i = 0; i < LOGIC_ADDR_LEN; i++)
+				arpcache.ipaddr[i] = arp_package->arphdr.spa[i];
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
+				arpcache.macaddr[i] = arp_package->arphdr.sha[i];
+		for (i = 0; i < LOGIC_ADDR_LEN; i++)
+				printk("%d:", arpcache.ipaddr[i]);
+		printk("\n");
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
+				printk("%x:", arpcache.macaddr[i]);
+		printk("\n");
+
+}
+
+void netif_rx(char *packet)
+{
+		resolve_arp((struct pbuf *)packet);
+}
