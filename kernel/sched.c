@@ -175,7 +175,7 @@ void sleep_on(struct task_struct **p)
 	schedule();
 	if (tmp) {
 		tmp->state=0;
-		//fprintk(3, "%ld\t%c\t%ld\n", tmp->pid,'J',jiffies);
+		fprintk(3, "%ld\t%c\t%ld\n", tmp->pid,'J',jiffies);
 	}
 }
 
@@ -202,7 +202,7 @@ repeat:	current->state = TASK_INTERRUPTIBLE;
 	*p=NULL;
 	if (tmp) {
 		tmp->state=0;
-		//fprintk(3, "%ld\t%c\t%ld\n", tmp->pid,'J',jiffies);
+		fprintk(3, "%ld\t%c\t%ld\n", tmp->pid,'J',jiffies);
 	}
 
 }
